@@ -13,15 +13,11 @@ import android.widget.TextView
 import android.widget.Toast
 import android.support.v4.content.ContextCompat.startActivity
 
-
-
 class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
-
     }
 
     fun intentFunc(a:Activity)
@@ -30,14 +26,8 @@ class MainActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
-    fun click_LittlePrince(view:View)
-    {
-        intentFunc(LittlePrince())
-    }
-
     fun click_Lista(view:View)
     {
-        startService(Intent(this,MyService::class.java))
         intentFunc(Lista())
     }
 

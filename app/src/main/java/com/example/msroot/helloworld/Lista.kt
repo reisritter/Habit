@@ -1,5 +1,6 @@
 package com.example.msroot.helloworld
 
+import android.Manifest
 import android.app.ActivityManager
 import android.content.Context
 import android.content.pm.ApplicationInfo
@@ -8,52 +9,118 @@ import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.support.v4.content.ContextCompat.getSystemService
 import android.util.Log
-import android.view.View
-import android.view.ViewGroup
 import android.app.ActivityManager.AppTask
 import android.content.pm.PackageInfo
 import android.R.attr.label
-import android.view.LayoutInflater
+import android.content.Intent
+import android.provider.Settings
+import android.support.v4.app.ActivityCompat
+import android.support.v4.content.ContextCompat
+import android.support.v7.widget.Toolbar
+import android.view.*
 import android.widget.*
 import kotlinx.android.synthetic.main.item.view.*
+import android.app.AppOpsManager
+import android.support.v4.content.PermissionChecker.checkCallingOrSelfPermission
+
+import android.support.v4.content.ContextCompat.getSystemService
+
+
 
 class Lista : AppCompatActivity() {
 
-    public lateinit var a:ArrayList<model>
-    var lista_prog:MutableList<String>?=mutableListOf()
+    public lateinit var lista_programas_instalados:ArrayList<model>
+
+    companion object {
+        var status:Boolean = false
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_lista)
 
+        //COLOCO A TOOLBAR PERSONALIZADA NA ACTIVITY
+        val myToolbar = findViewById<View>(R.id.my_toolbar) as Toolbar
+        setSupportActionBar(myToolbar)
+
+        //LISTA OS PROGRAMAS INSTALADOS
         val listView = findViewById<ListView>(R.id.lista)
         var pm:PackageManager = this.getPackageManager()
         var pacotes: List<ApplicationInfo> = pm.getInstalledApplications(PackageManager.GET_META_DATA)
-        a = ArrayList()
+        lista_programas_instalados = ArrayList()
 
         for(l:ApplicationInfo in pacotes)
         {
             var modelo:model=model()
             modelo.setName1(l.processName)
             modelo.i = l.loadIcon(packageManager)
-            a.add(modelo)
+            lista_programas_instalados.add(modelo)
         }
 
-        var custom:Adapter? = Adapter(this,a)
+        var custom:Adapter? = Adapter(this,lista_programas_instalados)
         listView.adapter = custom
+
+    }
+
+    fun p():Boolean
+    {
+        var granted = false
+        val appOps = this.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+        val mode = appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS,android.os.Process.myUid(), this.getPackageName())
+
+        if (mode == AppOpsManager.MODE_DEFAULT) {
+            granted = this.checkCallingOrSelfPermission(android.Manifest.permission.PACKAGE_USAGE_STATS) === PackageManager.PERMISSION_GRANTED
+        } else {
+            granted = mode == AppOpsManager.MODE_ALLOWED
+        }
+        return granted
+    }
+
+    //COLOCA O MENU_LISTA NA TOOLBAR
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.menu_lista, menu)
+        return true
+    }
+
+    //AÇÃO PARA OS BOTÕES DA TOOLBAR
+    override fun onOptionsItemSelected(item: MenuItem) = when (item.itemId) {
+        R.id.menu_grava -> {
+
+            if (!p())
+            {
+
+                startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS));
+             }
+            else
+            {
+                status = true
+                var service : Intent = Intent(this,MyService::class.java)
+                service.putExtra("lista",Adapter.lista_programas as ArrayList<out String>)
+                startService(service)
+            }
+
+            true
+        }
+
+        else ->
+        {
+            super.onOptionsItemSelected(item)
+        }
     }
 
     class Adapter(context:Context,val model:ArrayList<model>) : BaseAdapter()
     {
 
         private val vContext:Context
-        //var lista_programas:MutableList<String>?= mutableListOf()
-        companion object {lateinit var lista_programas:MutableList<String>}
+        companion object {
+            lateinit var lista_programas:MutableList<String>
+        }
+
 
         init
         {
             vContext=context
-            lista_programas = mutableListOf("0")
+            lista_programas = mutableListOf()
         }
 
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
@@ -75,6 +142,8 @@ class Lista : AppCompatActivity() {
 
             holder.tvname!!.setText(model[position].getName1())
             holder.icon!!.setImageDrawable(model[position].i);
+
+            //QUANDO MUDA O STATUS DO SWITCH DO ITEM DA LISTA
 
             holder.status!!.setOnCheckedChangeListener(CompoundButton.OnCheckedChangeListener
             (fun (buttonView: CompoundButton, isChecked: Boolean) {
