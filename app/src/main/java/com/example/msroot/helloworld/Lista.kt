@@ -12,6 +12,8 @@ import android.util.Log
 import android.app.ActivityManager.AppTask
 import android.content.pm.PackageInfo
 import android.R.attr.label
+import android.R.attr.onClick
+import android.app.AlertDialog
 import android.content.Intent
 import android.provider.Settings
 import android.support.v4.app.ActivityCompat
@@ -21,10 +23,14 @@ import android.view.*
 import android.widget.*
 import kotlinx.android.synthetic.main.item.view.*
 import android.app.AppOpsManager
+import android.app.TimePickerDialog
+import android.content.DialogInterface
 import android.support.v4.content.PermissionChecker.checkCallingOrSelfPermission
 
 import android.support.v4.content.ContextCompat.getSystemService
-
+import android.os.CountDownTimer
+import android.support.v4.app.Fragment
+import java.util.*
 
 
 class Lista : AppCompatActivity() {
@@ -49,6 +55,10 @@ class Lista : AppCompatActivity() {
         var pacotes: List<ApplicationInfo> = pm.getInstalledApplications(PackageManager.GET_META_DATA)
         lista_programas_instalados = ArrayList()
 
+        //val newFragment = TimePicker()
+        //newFragment.show(supportFragmentManager, "timePicker")
+
+
         for(l:ApplicationInfo in pacotes)
         {
             var modelo:model=model()
@@ -61,6 +71,8 @@ class Lista : AppCompatActivity() {
         listView.adapter = custom
 
     }
+
+
 
     fun p():Boolean
     {
@@ -86,17 +98,65 @@ class Lista : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem) = when (item.itemId) {
         R.id.menu_grava -> {
 
-            if (!p())
+            if(Adapter.lista_programas.size>0)
             {
+                if (!p())
+                {
+                    startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS));
+                 }
+                else
+                {
+                    status = true
+                    var tempo=0
+                    //Escolher o tempo
+                    val timeSetListener = TimePickerDialog.OnTimeSetListener { timePicker, hour, minute ->
+                        val cal = Calendar.getInstance()
 
-                startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS));
-             }
+                        var horaAtual = if (cal.get(Calendar.HOUR_OF_DAY)==0) 24 else cal.get(Calendar.HOUR_OF_DAY)
+                        var horaEscolhida = if(hour ==0)24 else hour
+
+                        var t1=horaEscolhida*60+minute
+                        var t2 = horaAtual*60+cal.get(Calendar.MINUTE)
+
+                        if(t1 >= t2)
+                            tempo=t1-t2
+                        else tempo = 24*60-(t2-t1)
+
+                        var horaAte = tempo/60
+                        var minutoAte = tempo%60
+
+                        tempo*=60
+
+                        Toast.makeText(this,"Duração: "+horaAte.toString()+":"+minutoAte.toString(),Toast.LENGTH_SHORT).show()
+
+                        val service : Intent = Intent(this,MyService::class.java)
+                        service.putExtra("lista",Adapter.lista_programas as ArrayList<out String>)
+                        startService(service)
+
+                        object : CountDownTimer(tempo.toLong()*1000, 1000) {
+
+                            override fun onTick(millisUntilFinished: Long) {
+                                //Toast.makeText(this@Lista,"seconds remaining: " + (millisUntilFinished / 1000).toString(),Toast.LENGTH_SHORT).show()
+                            }
+
+                            override fun onFinish() {
+                                stopService(service)
+                            }
+                        }.start()
+
+                    }
+                    TimePickerDialog(this, timeSetListener, 0, 0, true).show()
+                }
+            }
             else
             {
-                status = true
-                var service : Intent = Intent(this,MyService::class.java)
-                service.putExtra("lista",Adapter.lista_programas as ArrayList<out String>)
-                startService(service)
+                val dlgAlert = AlertDialog.Builder(this)
+                dlgAlert.setMessage("Selecione um programa")
+                dlgAlert.setTitle("App Title")
+                dlgAlert.setPositiveButton("OK", null)
+                dlgAlert.setCancelable(true)
+                dlgAlert.create().show()
+                //dlgAlert.setPositiveButton("Ok", DialogInterface.OnClickListener()
             }
 
             true
